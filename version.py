@@ -64,20 +64,17 @@ def getVersion(parentDir, packageName) -> str:
         downloadPath = parentDir / f"{version}.zip"
 
         release = repo.get_release(version)
-        downloadAssests = release.assets
         asset = None
 
-        for asset in downloadAssests:
-            if asset.content_type == "application/x-zip-compressed":
-                asset = asset
+        for releaseAsset in release.assets:
+            if releaseAsset.content_type == "application/x-zip-compressed":
+                asset = releaseAsset
 
         if not asset:
             raise Exception("zip file not found")
 
-        downloadURL = asset.browser_download_url
-
-        res = requests.get(downloadURL)
-        downloadPath.open("wb").write(res.content)
+        downloadPath.open("wb").write(
+            requests.get(asset.browser_download_url).content)
 
         with ZipFile(downloadPath, "r") as zip:
             zip.extractall(programDir)
