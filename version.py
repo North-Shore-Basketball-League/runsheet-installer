@@ -1,79 +1,65 @@
 from typing import Tuple
 from zipfile import ZipFile
 from github import Github
+import json
+import shutil
 import re
 import requests
 
 
-def check_version(repo, folderPath, release) -> Tuple[bool, str]:
-    "dev=v1.2.0-dev.1"
-    if release == "beta" or release == "dev":
-        versionRegex = release + \
-            r"=(?P<version>v[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-" + \
-            release+r"\.[0-9]{1,2}))"
-    else:
-        versionRegex = release + \
-            r"=(?P<version>v[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2})"
-    justNumsRegex = r"(?P<v>[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2})"
+def check_version(repo, folderPath, versionPath) -> Tuple[bool, str]:
+    justNumsRegex = r"v(?P<v>[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2})"
     localVersion = "_"
     repoVersion = "_"
 
     # Get repo version
-    contents = repo.get_contents("src/nsblextracter/info.md").decoded_content
-    repoVersionRegex = re.search(versionRegex, str(contents).lower())
-    if repoVersionRegex:
-        repoVersion = repoVersionRegex.group("version")
-        repoNumsOnly = re.search(justNumsRegex, repoVersion).group("v")
-    else:
-        print(contents)
-        raise Exception("Repo version not found!")
+    release = repo.get_latest_release()
+    repoVersion = release.tag_name
 
     if not folderPath.exists():
         print("downloading script...")
         return [True, repoVersion]
 
     # Get local version dets
-    infoPath = folderPath / "info.md"
-    with infoPath.open() as file:
-        for i in file:
-            localVersionRegex = re.search(versionRegex, i.lower())
+    localVersionJSON = json.loads(versionPath.read_text(encoding="UTF-8"))
 
-            if localVersionRegex:
-                localVersion = localVersionRegex.group(
-                    "version")
-                localNumsOnly = re.search(
-                    justNumsRegex, localVersion).group("v")
+    localVersion = localVersionJSON["version"]
 
-    if localVersion == "_":
-        raise Exception("Local version not found!")
+    repoVersionNums = re.match(
+        justNumsRegex, repoVersion).group("v").split(".")
+    localVersionNums = re.match(
+        justNumsRegex, localVersion).group("v").split(".")
 
-    # Convert both to arrays
-    localVArray = localNumsOnly.split(".")
-    repoVArray = repoNumsOnly.split(".")
-
+    # Version tag always going to be ['0', '0', '0'] at this point
     for i in range(3):
-        if int(repoVArray[i]) > int(localVArray[i]):
+        repoV = int(repoVersionNums[i])
+        localV = int(localVersionNums[i])
+        if repoV > localV:
             print("updating script...")
             return [True, repoVersion]
+        elif repoV < localV:
+            return [False, localVersion]
 
+    # TODO: implement comparison checks for beta and dev versions
     return [False, localVersion]
 
 
 def getVersion(parentDir, packageName) -> str:
     # Checking if program is bundled
-    programDir = parentDir/packageName
+    programDir = parentDir / packageName
+    versionPath = programDir / "version.json"
 
     # Setting up github
     g = Github()
-    repo = g.get_repo("tobsterclark/nsbl-create-spreadsheets")
+    repo = g.get_repo("north-shore-basketball-league/runsheet-script")
 
     # checking latest version
-    updateNeeded, version = check_version(repo, programDir)
+    updateNeeded, version = check_version(repo, programDir, versionPath)
 
     # Download new dir
     if updateNeeded:
         if programDir.exists():
-            programDir.unlink()
+            shutil.rmtree(programDir)
 
         downloadPath = parentDir / f"{version}.zip"
 
@@ -95,6 +81,9 @@ def getVersion(parentDir, packageName) -> str:
 
         with ZipFile(downloadPath, "r") as zip:
             zip.extractall(programDir)
+
+        with versionPath.open("x", encoding="UTF-8") as f:
+            json.dump({"version": version, "type": "stable"}, f)
 
         downloadPath.unlink()
 
