@@ -19,8 +19,6 @@ def main():
         sys.path.append(str(parentDir))
         sys.path.append(str(folder))
 
-        print(sys.path)
-        print(packageName)
         package = importlib.import_module(packageName)
 
         package.export()
