@@ -1,1 +1,13 @@
-.env
+test.xlsx
+team-data.*
+output.*
+*.DS_Store
+**/**/setup/
+**/**__pycache__/
+**/**build/*
+**/**inno-dist/*
+.venv/
+**/**dist/*
+out/*
+**/**.zip
+deploy/.env
