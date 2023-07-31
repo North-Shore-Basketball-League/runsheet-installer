@@ -3,6 +3,9 @@ from pathlib import Path
 from time import sleep
 from version import getVersion
 import sys
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def main():

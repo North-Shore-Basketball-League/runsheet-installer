@@ -5,12 +5,17 @@ import json
 import shutil
 import re
 import requests
+import os
 
 
 def check_version(repo, folderPath, versionPath) -> Tuple[bool, str]:
     justNumsRegex = r"v(?P<v>[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2})"
     localVersion = "_"
     repoVersion = "_"
+
+    # Check if custom version flag is set in .env
+    if os.getenv("CUSTOM") == "True":
+        return [True, os.getenv("VERSION")]
 
     # Get repo version
     release = repo.get_latest_release()
@@ -40,7 +45,6 @@ def check_version(repo, folderPath, versionPath) -> Tuple[bool, str]:
         elif repoV < localV:
             return [False, localVersion]
 
-    # TODO: implement comparison checks for beta and dev versions
     return [False, localVersion]
 
 
